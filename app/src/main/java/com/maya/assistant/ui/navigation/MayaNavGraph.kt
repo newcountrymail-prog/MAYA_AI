@@ -18,9 +18,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.maya.assistant.ui.components.BottomNavBar
 import com.maya.assistant.ui.components.MayaDrawerContent
+import com.maya.assistant.ui.screens.agents.MultiAgentScreen
 import com.maya.assistant.ui.screens.chat.ChatScreen
+import com.maya.assistant.ui.screens.coding.CodingStudioScreen
+import com.maya.assistant.ui.screens.documents.DocumentsScreen
 import com.maya.assistant.ui.screens.home.HomeScreen
+import com.maya.assistant.ui.screens.image.ImageStudioScreen
 import com.maya.assistant.ui.screens.memories.MemoriesScreen
+import com.maya.assistant.ui.screens.providers.ProvidersScreen
+import com.maya.assistant.ui.screens.research.ResearchScreen
 import com.maya.assistant.ui.screens.scanner.ScannerScreen
 import com.maya.assistant.ui.screens.settings.AdvancedSettingsScreen
 import com.maya.assistant.ui.screens.settings.SettingsScreen
@@ -125,12 +131,51 @@ fun MayaNavGraph(
                     composable(Screen.Settings.route) {
                         SettingsScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToAdvanced = { navController.navigate(Screen.AdvancedSettings.route) }
+                            onNavigateToAdvanced = { navController.navigate(Screen.AdvancedSettings.route) },
+                            onNavigateToProviders = { navController.navigate(Screen.AiProviders.route) },
+                            onNavigateToSubAgents = { navController.navigate(Screen.MultiAgent.route) }
                         )
                     }
 
                     composable(Screen.AdvancedSettings.route) {
                         AdvancedSettingsScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    // Part 2 Destinations
+                    composable(Screen.AiProviders.route) {
+                        ProvidersScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.ImageStudio.route) {
+                        ImageStudioScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.CodingStudio.route) {
+                        CodingStudioScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.Research.route) {
+                        ResearchScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.Documents.route) {
+                        DocumentsScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.MultiAgent.route) {
+                        MultiAgentScreen(
                             onBack = { navController.popBackStack() }
                         )
                     }

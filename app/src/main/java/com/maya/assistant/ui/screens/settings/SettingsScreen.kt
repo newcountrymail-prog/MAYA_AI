@@ -58,6 +58,8 @@ import com.maya.assistant.ui.theme.MayaTextSecondary
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAdvanced: () -> Unit,
+    onNavigateToProviders: () -> Unit = {},
+    onNavigateToSubAgents: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel()
 ) {
@@ -125,11 +127,11 @@ fun SettingsScreen(
                     Divider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 20.dp))
                     SettingsItemRow(
                         icon = Icons.Default.RecordVoiceOver,
-                        title = "Voice engine",
-                        subtitle = "Normal ya Advanced Agentic — wo kaise sunti, sochti aur bolti hai",
+                        title = "Voice engine & Providers",
+                        subtitle = "Normal ya Advanced Agentic — AI Providers aur models configure karein",
                         iconBg = Color(0xFFEFF6FF),
                         iconTint = Color(0xFF2563EB),
-                        onClick = { }
+                        onClick = onNavigateToProviders
                     )
                     Divider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 20.dp))
                     SettingsItemRow(
@@ -156,7 +158,7 @@ fun SettingsScreen(
                         subtitle = "Coding models aur background agents",
                         iconBg = Color(0xFFEFF6FF),
                         iconTint = Color(0xFF0284C7),
-                        onClick = { }
+                        onClick = onNavigateToSubAgents
                     )
                 }
             }

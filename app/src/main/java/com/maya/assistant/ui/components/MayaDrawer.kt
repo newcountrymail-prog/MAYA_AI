@@ -20,11 +20,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Storefront
@@ -123,6 +128,47 @@ fun MayaDrawerContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Section INTELLIGENCE & CREATIVE
+        DrawerSectionTitle("AI & CREATIVE")
+        DrawerItem(
+            icon = Icons.Default.Hub,
+            title = "AI Providers",
+            isSelected = currentRoute == "ai_providers",
+            onClick = { onNavigate("ai_providers") }
+        )
+        DrawerItem(
+            icon = Icons.Default.Code,
+            title = "Website / Coding",
+            isSelected = currentRoute == "coding_studio",
+            onClick = { onNavigate("coding_studio") }
+        )
+        DrawerItem(
+            icon = Icons.Default.Image,
+            title = "Image Studio",
+            isSelected = currentRoute == "image_studio",
+            onClick = { onNavigate("image_studio") }
+        )
+        DrawerItem(
+            icon = Icons.Default.Search,
+            title = "Research",
+            isSelected = currentRoute == "research",
+            onClick = { onNavigate("research") }
+        )
+        DrawerItem(
+            icon = Icons.Default.Article,
+            title = "Documents",
+            isSelected = currentRoute == "documents",
+            onClick = { onNavigate("documents") }
+        )
+        DrawerItem(
+            icon = Icons.Default.Group,
+            title = "Sub-agents",
+            isSelected = currentRoute == "multi_agent",
+            onClick = { onNavigate("multi_agent") }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Section KAAM-KAAJ
         DrawerSectionTitle("KAAM-KAAJ")
         DrawerItem(
@@ -138,22 +184,10 @@ fun MayaDrawerContent(
             onClick = { onNavigate("home") }
         )
         DrawerItem(
-            icon = Icons.Default.Article,
-            title = "Documents",
-            isSelected = false,
-            onClick = { onNavigate("chat") }
-        )
-        DrawerItem(
             icon = Icons.Default.PhotoLibrary,
             title = "Meri photos",
             isSelected = false,
             onClick = { onNavigate("scanner") }
-        )
-        DrawerItem(
-            icon = Icons.Default.Code,
-            title = "Website / Coding",
-            isSelected = false,
-            onClick = { onNavigate("chat") }
         )
         DrawerItem(
             icon = Icons.Default.Language,
