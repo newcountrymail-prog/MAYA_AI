@@ -15,9 +15,6 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -360,53 +357,47 @@ fun ScannerScreen(
                 }
 
                 // AI Solution Overlay Card (if generated)
-                AnimatedVisibility(
-                    visible = latestSolution != null,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                ) {
-                    if (latestSolution != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(Color(0xFF0F172A).copy(alpha = 0.95f))
-                                .padding(16.dp)
-                        ) {
-                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Maya Solution ✨",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = MayaCyanAccent
-                                    )
-                                    IconButton(
-                                        onClick = { viewModel.clearSolution() },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Close",
-                                            tint = Color.LightGray,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
+                if (latestSolution != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(12.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF0F172A).copy(alpha = 0.95f))
+                            .padding(16.dp)
+                    ) {
+                        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = latestSolution ?: "",
-                                    fontSize = 13.sp,
-                                    color = Color.White,
-                                    lineHeight = 18.sp
+                                    text = "Maya Solution ✨",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = MayaCyanAccent
                                 )
+                                IconButton(
+                                    onClick = { viewModel.clearSolution() },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Close",
+                                        tint = Color.LightGray,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = latestSolution ?: "",
+                                fontSize = 13.sp,
+                                color = Color.White,
+                                lineHeight = 18.sp
+                            )
                         }
                     }
                 }
