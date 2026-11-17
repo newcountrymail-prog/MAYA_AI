@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Group
@@ -28,11 +29,13 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
@@ -165,6 +168,29 @@ fun MayaDrawerContent(
             title = "Sub-agents",
             isSelected = currentRoute == "multi_agent",
             onClick = { onNavigate("multi_agent") }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Section AUTOMATION & CLOUD (Part 3)
+        DrawerSectionTitle("AUTOMATION & CLOUD")
+        DrawerItem(
+            icon = Icons.Default.PhoneAndroid,
+            title = "Phone Control",
+            isSelected = currentRoute == "automation",
+            onClick = { onNavigate("automation") }
+        )
+        DrawerItem(
+            icon = Icons.Default.TouchApp,
+            title = "Skills & Workflows",
+            isSelected = currentRoute == "skills",
+            onClick = { onNavigate("skills") }
+        )
+        DrawerItem(
+            icon = Icons.Default.Cloud,
+            title = "Cloud Job Manager",
+            isSelected = currentRoute == "cloud_jobs",
+            onClick = { onNavigate("cloud_jobs") }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

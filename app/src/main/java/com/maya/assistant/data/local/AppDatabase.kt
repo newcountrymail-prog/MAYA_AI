@@ -11,12 +11,14 @@ import com.maya.assistant.data.local.dao.ChatMessageDao
 import com.maya.assistant.data.local.dao.GeneratedImageDao
 import com.maya.assistant.data.local.dao.MemoryDao
 import com.maya.assistant.data.local.dao.ResearchReportDao
+import com.maya.assistant.data.local.dao.UserMemoryDao
 import com.maya.assistant.data.local.entity.AgentTaskEntity
 import com.maya.assistant.data.local.entity.AiProviderEntity
 import com.maya.assistant.data.local.entity.ChatMessageEntity
 import com.maya.assistant.data.local.entity.GeneratedImageEntity
 import com.maya.assistant.data.local.entity.MemoryEntity
 import com.maya.assistant.data.local.entity.ResearchReportEntity
+import com.maya.assistant.data.local.entity.UserMemoryEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,9 +30,10 @@ import kotlinx.coroutines.launch
         AiProviderEntity::class,
         AgentTaskEntity::class,
         GeneratedImageEntity::class,
-        ResearchReportEntity::class
+        ResearchReportEntity::class,
+        UserMemoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,6 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun agentTaskDao(): AgentTaskDao
     abstract fun generatedImageDao(): GeneratedImageDao
     abstract fun researchReportDao(): ResearchReportDao
+    abstract fun userMemoryDao(): UserMemoryDao
 
     companion object {
         @Volatile
@@ -60,6 +64,7 @@ abstract class AppDatabase : RoomDatabase() {
                             CoroutineScope(Dispatchers.IO).launch {
                                 populateInitialTasks(getInstance(context).memoryDao())
                                 populateInitialProviders(getInstance(context).aiProviderDao())
+                                populateInitialUserMemories(getInstance(context).userMemoryDao())
                             }
                         }
                     })
@@ -67,6 +72,54 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        private suspend fun populateInitialUserMemories(dao: UserMemoryDao) {
+            val initial = listOf(
+                UserMemoryEntity(
+                    key = "Assistant Persona",
+                    content = "MAYA is a caring, intelligent female AI companion responding in Hindi and English.",
+                    category = UserMemoryEntity.CAT_USER_PREFERENCES,
+                    isPinned = true,
+                    tags = "persona,maya,language"
+                ),
+                UserMemoryEntity(
+                    key = "Active Project",
+                    content = "MAYA AI Independent Android Application development and phone automation.",
+                    category = UserMemoryEntity.CAT_PROJECTS,
+                    isPinned = true,
+                    tags = "android,kotlin,jetpack_compose"
+                ),
+                UserMemoryEntity(
+                    key = "Quick Emergency Alias",
+                    content = "Mom -> Maa",
+                    category = UserMemoryEntity.CAT_CONTACT_ALIASES,
+                    isPinned = false,
+                    tags = "contacts,alias"
+                ),
+                UserMemoryEntity(
+                    key = "Morning Briefing",
+                    content = "Subah daily summary, unread notifications aur schedule review karein.",
+                    category = UserMemoryEntity.CAT_COMMANDS,
+                    isPinned = false,
+                    tags = "routine,briefing"
+                ),
+                UserMemoryEntity(
+                    key = "Low Power Mode",
+                    content = "Battery level kam hone par heavy local tasks pause karein.",
+                    category = UserMemoryEntity.CAT_DEVICE_PREFERENCES,
+                    isPinned = false,
+                    tags = "battery,power"
+                ),
+                UserMemoryEntity(
+                    key = "Welcome Note",
+                    content = "MAYA AI is fully configured with Universal AI, OpenCode, Image Studio, and Phone Control.",
+                    category = UserMemoryEntity.CAT_IMPORTANT_NOTES,
+                    isPinned = true,
+                    tags = "welcome,notes"
+                )
+            )
+            dao.insertAll(initial)
         }
 
         private suspend fun populateInitialTasks(dao: MemoryDao) {

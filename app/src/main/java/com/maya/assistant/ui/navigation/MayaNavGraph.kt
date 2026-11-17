@@ -179,6 +179,24 @@ fun MayaNavGraph(
                             onBack = { navController.popBackStack() }
                         )
                     }
+
+                    composable(Screen.Automation.route) {
+                        com.maya.assistant.ui.screens.automation.AutomationScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.Skills.route) {
+                        com.maya.assistant.ui.screens.skills.SkillsScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.CloudJobs.route) {
+                        com.maya.assistant.ui.screens.cloud.CloudJobsScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
                 }
             }
         }

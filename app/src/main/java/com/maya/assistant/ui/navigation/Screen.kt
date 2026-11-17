@@ -16,4 +16,9 @@ sealed class Screen(val route: String) {
     object Research : Screen("research")
     object Documents : Screen("documents")
     object MultiAgent : Screen("multi_agent")
+
+    // Part 3 Screens
+    object Automation : Screen("automation")
+    object Skills : Screen("skills")
+    object CloudJobs : Screen("cloud_jobs")
 }

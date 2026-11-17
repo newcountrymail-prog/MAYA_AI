@@ -141,6 +141,23 @@ class MultiModelOrchestrator(
             else -> false
         }
     }
+
+    suspend fun generateVisionResponse(
+        prompt: String,
+        imageBase64: String,
+        isFreeModeOnly: Boolean = true
+    ): String {
+        val result = routeAndExecute(
+            capability = "vision",
+            prompt = prompt,
+            isFreeModeOnly = isFreeModeOnly,
+            contextData = "[Image Data Base64: ${imageBase64.take(40)}...]"
+        )
+        return when (result) {
+            is ExecutionResult.Success -> result.content
+            is ExecutionResult.Failure -> "Vision response unavailable: ${result.error}"
+        }
+    }
 }
 
 sealed class ExecutionResult {
