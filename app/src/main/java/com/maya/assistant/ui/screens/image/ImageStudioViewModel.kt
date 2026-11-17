@@ -18,8 +18,7 @@ import kotlinx.coroutines.launch
 class ImageStudioViewModel(application: Application) : AndroidViewModel(application) {
 
     private val mayaApp = application as MayaApplication
-    private val imageEngine = mayaApp.imageEngine
-        get() = mayaApp.imageStudioEngine
+    private val imageEngine = mayaApp.imageStudioEngine
     private val dao = mayaApp.database.generatedImageDao()
 
     val history: StateFlow<List<GeneratedImageEntity>> = dao.getAllImagesFlow().stateIn(
