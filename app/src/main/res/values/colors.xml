@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="maya_bg">#E8EEF8</color>
+    <color name="maya_navy">#0D1B2A</color>
+    <color name="maya_cyan">#E0F2FE</color>
+    <color name="maya_accent">#2563EB</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+</resources>
