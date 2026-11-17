@@ -1,12 +1,23 @@
 package com.maya.assistant.ui.screens.scanner
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.view.ViewGroup
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraControl
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,35 +31,56 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cached
-import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.maya.assistant.ui.components.NeumorphicCard
 import com.maya.assistant.ui.components.TopHeaderBar
 import com.maya.assistant.ui.theme.MayaBgLight
-import com.maya.assistant.ui.theme.MayaHudBg
-import com.maya.assistant.ui.theme.MayaHudCyan
+import com.maya.assistant.ui.theme.MayaCyanAccent
+import com.maya.assistant.ui.theme.MayaNavy
+import com.maya.assistant.ui.theme.MayaTextPrimary
+import com.maya.assistant.ui.theme.MayaTextSecondary
+import java.nio.ByteBuffer
+import java.util.concurrent.Executors
 
 @Composable
 fun ScannerScreen(
@@ -56,278 +88,476 @@ fun ScannerScreen(
     modifier: Modifier = Modifier,
     viewModel: ScannerViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
     val isBackCamera by viewModel.isBackCamera.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
-    val isRecording by viewModel.isRecording.collectAsState()
+    val isTorchOn by viewModel.isTorchOn.collectAsState()
     val statusText by viewModel.statusText.collectAsState()
-    val feedState by viewModel.feedState.collectAsState()
+    val latestSolution by viewModel.latestSolution.collectAsState()
 
-    val infiniteTransition = rememberInfiniteTransition(label = "hud_rotation")
-    val hudRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(12000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasCameraPermission = granted
+    }
+
+    var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
+    var cameraControl: CameraControl? by remember { mutableStateOf(null) }
+    var userQueryText by remember { mutableStateOf("") }
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    LaunchedEffect(isTorchOn, cameraControl) {
+        cameraControl?.enableTorch(isTorchOn)
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MayaBgLight)
     ) {
-        // Top Header Bar
+        // Top Header
         TopHeaderBar(
-            title = "Scanner",
+            title = "Maya Vision Scanner",
             onNavIconClick = onOpenDrawer,
             onNotificationClick = {}
         )
 
-        // Viewport Area (Dark Cyberpunk HUD)
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(MayaHudBg)
-                .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(24.dp))
-        ) {
-            // Subtle HUD Grid Lines
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val step = 40.dp.toPx()
-                val gridColor = Color(0xFF0F1E33)
-                var x = 0f
-                while (x < size.width) {
-                    drawLine(gridColor, Offset(x, 0f), Offset(x, size.height), 1f)
-                    x += step
-                }
-                var y = 0f
-                while (y < size.height) {
-                    drawLine(gridColor, Offset(0f, y), Offset(size.width, y), 1f)
-                    y += step
-                }
-            }
-
-            // Top Status Overlay
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MayaHudCyan)
-                    )
-                    Text(
-                        text = " MAYA VISION",
-                        fontSize = 13.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = MayaHudCyan,
-                        letterSpacing = 1.sp
-                    )
-                }
-
-                Text(
-                    text = if (isBackCamera) "BACK CAM" else "FRONT CAM",
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = Color(0xFF64748B)
-                )
-            }
-
-            // Standby Prompt Terminal Box
+        if (!hasCameraPermission) {
+            // Permission Request Card
             Box(
                 modifier = Modifier
-                    .padding(top = 56.dp, start = 20.dp, end = 20.dp)
-                    .border(1.dp, Color(0xFF1E3A8A).copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                    .background(Color(0xFF0A1322).copy(alpha = 0.8f))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = statusText,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = Color(0xFF93C5FD),
-                    lineHeight = 16.sp
-                )
-            }
-
-            // Center Radar / HUD Reticle
-            Box(
-                modifier = Modifier
-                    .size(230.dp)
-                    .align(Alignment.Center),
+                    .fillMaxSize()
+                    .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .rotate(hudRotation)
+                NeumorphicCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp)
                 ) {
-                    val center = Offset(size.width / 2, size.height / 2)
-                    val radius = size.width / 2 - 10f
-
-                    // Dashed Outer Ring
-                    drawCircle(
-                        color = Color(0xFF1E3A8A),
-                        radius = radius,
-                        center = center,
-                        style = Stroke(
-                            width = 2f,
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE0F2FE)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = null,
+                                tint = MayaNavy,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Maya ko Aankhein Dijiye 📷",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MayaNavy
                         )
-                    )
-
-                    // Rotating Cyan Arcs
-                    drawArc(
-                        color = MayaHudCyan,
-                        startAngle = 45f,
-                        sweepAngle = 70f,
-                        useCenter = false,
-                        topLeft = Offset(center.x - radius * 0.75f, center.y - radius * 0.75f),
-                        size = Size(radius * 1.5f, radius * 1.5f),
-                        style = Stroke(width = 3.5f)
-                    )
-
-                    drawArc(
-                        color = MayaHudCyan,
-                        startAngle = 225f,
-                        sweepAngle = 70f,
-                        useCenter = false,
-                        topLeft = Offset(center.x - radius * 0.75f, center.y - radius * 0.75f),
-                        size = Size(radius * 1.5f, radius * 1.5f),
-                        style = Stroke(width = 3.5f)
-                    )
-                }
-
-                // Crosshair Reticle Center
-                Canvas(modifier = Modifier.size(80.dp)) {
-                    val center = Offset(size.width / 2, size.height / 2)
-                    drawLine(Color(0xFF38BDF8), Offset(center.x, 0f), Offset(center.x, 24f), 2f)
-                    drawLine(Color(0xFF38BDF8), Offset(center.x, size.height - 24f), Offset(center.x, size.height), 2f)
-                    drawLine(Color(0xFF38BDF8), Offset(0f, center.y), Offset(24f, center.y), 2f)
-                    drawLine(Color(0xFF38BDF8), Offset(size.width - 24f, center.y), Offset(size.width, center.y), 2f)
-                    drawCircle(MayaHudCyan, radius = 5f, center = center)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Camera access se Maya real world me dekh sakegi, math solve karegi, documents padhegi aur aapke har sawaal ka live jawab degi.",
+                            fontSize = 13.sp,
+                            color = MayaTextSecondary,
+                            lineHeight = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MayaNavy)
+                        ) {
+                            Text("Camera Permission Allow Karein")
+                        }
+                    }
                 }
             }
-
-            // Bottom Telemetry Overlay
-            Column(
+        } else {
+            // Live CameraX Viewfinder Area
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 24.dp, bottom = 100.dp)
-            ) {
-                Text(
-                    text = "FRM 004184   SIG 68",
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = Color(0xFF475569)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = feedState,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = if (feedState.contains("ACTIVE") || feedState.contains("STREAMING")) MayaHudCyan else Color(0xFF64748B)
-                )
-            }
-
-            // Controls Bar (Flip, Shutter Button, Rec)
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp)
-                    .padding(bottom = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color.Black)
             ) {
-                // Flip Camera
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { viewModel.flipCamera() }
+                // Real AndroidView wrapping CameraX PreviewView
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        val previewView = PreviewView(ctx).apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            scaleType = PreviewView.ScaleType.FILL_CENTER
+                        }
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                        cameraProviderFuture.addListener({
+                            val cameraProvider = cameraProviderFuture.get()
+                            val previewUseCase = Preview.Builder().build().also {
+                                it.setSurfaceProvider(previewView.surfaceProvider)
+                            }
+                            val captureUseCase = ImageCapture.Builder()
+                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                                .build()
+                            imageCapture = captureUseCase
+
+                            val selector = if (isBackCamera) {
+                                CameraSelector.DEFAULT_BACK_CAMERA
+                            } else {
+                                CameraSelector.DEFAULT_FRONT_CAMERA
+                            }
+
+                            try {
+                                cameraProvider.unbindAll()
+                                val cam = cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    selector,
+                                    previewUseCase,
+                                    captureUseCase
+                                )
+                                cameraControl = cam.cameraControl
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }, ContextCompat.getMainExecutor(ctx))
+
+                        previewView
+                    },
+                    update = {
+                        // Re-bind when camera flip is toggled
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(it.context)
+                        cameraProviderFuture.addListener({
+                            val cameraProvider = cameraProviderFuture.get()
+                            val previewUseCase = Preview.Builder().build().also { p ->
+                                p.setSurfaceProvider(it.surfaceProvider)
+                            }
+                            val captureUseCase = ImageCapture.Builder()
+                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                                .build()
+                            imageCapture = captureUseCase
+
+                            val selector = if (isBackCamera) {
+                                CameraSelector.DEFAULT_BACK_CAMERA
+                            } else {
+                                CameraSelector.DEFAULT_FRONT_CAMERA
+                            }
+
+                            try {
+                                cameraProvider.unbindAll()
+                                val cam = cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    selector,
+                                    previewUseCase,
+                                    captureUseCase
+                                )
+                                cameraControl = cam.cameraControl
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }, ContextCompat.getMainExecutor(it.context))
+                    }
+                )
+
+                // Top Controls on Camera (Torch & Flip)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF0F1E33)),
-                        contentAlignment = Alignment.Center
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Cached,
-                            contentDescription = "Flip Camera",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(24.dp)
+                        Text(
+                            text = if (isScanning) "AI Analyzing..." else "Maya Vision Live",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MayaCyanAccent
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "FLIP",
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF94A3B8)
-                    )
+
+                    Row {
+                        IconButton(
+                            onClick = { viewModel.toggleTorch() },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = if (isTorchOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                                contentDescription = "Torch",
+                                tint = if (isTorchOn) Color(0xFFFACC15) else Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        IconButton(
+                            onClick = { viewModel.flipCamera() },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Cameraswitch,
+                                contentDescription = "Flip",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
 
-                // Shutter Capture Button with Outer White Bloom
+                // Scanning Reticle (Center bracket)
                 Box(
                     modifier = Modifier
-                        .size(76.dp)
-                        .shadow(16.dp, CircleShape, ambientColor = MayaHudCyan, spotColor = MayaHudCyan)
-                        .clip(CircleShape)
-                        .background(Color(0xFF38BDF8).copy(alpha = 0.3f))
-                        .clickable { viewModel.capturePhoto() },
-                    contentAlignment = Alignment.Center
-                ) {
+                        .size(220.dp)
+                        .align(Alignment.Center)
+                        .border(1.5.dp, MayaCyanAccent.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
+                )
+
+                // Scanning Loader Indicator
+                if (isScanning) {
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.6f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = MayaCyanAccent)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Maya dekh rahi hai aur solve kar rahi hai...",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                // AI Solution Overlay Card (if generated)
+                AnimatedVisibility(
+                    visible = latestSolution != null,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    if (latestSolution != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFF0F172A).copy(alpha = 0.95f))
+                                .padding(16.dp)
+                        ) {
+                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Maya Solution ✨",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = MayaCyanAccent
+                                    )
+                                    IconButton(
+                                        onClick = { viewModel.clearSolution() },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Close",
+                                            tint = Color.LightGray,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = latestSolution ?: "",
+                                    fontSize = 13.sp,
+                                    color = Color.White,
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bottom Control Panel: Text Question + Big Capture Button
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                // User Prompt Query
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = userQueryText,
+                        onValueChange = { userQueryText = it },
+                        placeholder = { Text("Kuch poochna hai? (E.g. Is problem ko solve karo)") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MayaNavy,
+                            unfocusedBorderColor = Color.LightGray
+                        )
                     )
                 }
 
-                // Rec Video Button
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { viewModel.toggleRecording() }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Bottom Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Ask Quick Button
+                    Button(
+                        onClick = {
+                            val cap = imageCapture
+                            if (cap != null && !isScanning) {
+                                cap.takePicture(
+                                    cameraExecutor,
+                                    object : ImageCapture.OnImageCapturedCallback() {
+                                        override fun onCaptureSuccess(image: ImageProxy) {
+                                            val bitmap = imageProxyToBitmap(image)
+                                            image.close()
+                                            if (bitmap != null) {
+                                                viewModel.analyzeCapturedFrame(bitmap, userQueryText.ifBlank { "Is photo ko samjhao aur Hinglish me batao." })
+                                            }
+                                        }
+
+                                        override fun onError(exception: ImageCaptureException) {
+                                            exception.printStackTrace()
+                                        }
+                                    }
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MayaNavy),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.height(48.dp)
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Maya se Poochho")
+                    }
+
+                    // Shutter Button
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isRecording) Color(0xFFDC2626) else Color(0xFF0F1E33)),
+                            .size(62.dp)
+                            .clip(CircleShape)
+                            .border(3.dp, MayaNavy, CircleShape)
+                            .background(Color.White)
+                            .clickable {
+                                val cap = imageCapture
+                                if (cap != null && !isScanning) {
+                                    cap.takePicture(
+                                        cameraExecutor,
+                                        object : ImageCapture.OnImageCapturedCallback() {
+                                            override fun onCaptureSuccess(image: ImageProxy) {
+                                                val bitmap = imageProxyToBitmap(image)
+                                                image.close()
+                                                if (bitmap != null) {
+                                                    viewModel.analyzeCapturedFrame(bitmap, userQueryText.ifBlank { null })
+                                                }
+                                            }
+
+                                            override fun onError(exception: ImageCaptureException) {
+                                                exception.printStackTrace()
+                                            }
+                                        }
+                                    )
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Videocam,
-                            contentDescription = "Record",
-                            tint = if (isRecording) Color.White else Color(0xFF94A3B8),
-                            modifier = Modifier.size(24.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MayaNavy)
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (isRecording) "STOP" else "REC",
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isRecording) Color(0xFFEF4444) else Color(0xFF94A3B8)
-                    )
+
+                    // Math / Code Solver Preset Button
+                    Button(
+                        onClick = {
+                            val cap = imageCapture
+                            if (cap != null && !isScanning) {
+                                cap.takePicture(
+                                    cameraExecutor,
+                                    object : ImageCapture.OnImageCapturedCallback() {
+                                        override fun onCaptureSuccess(image: ImageProxy) {
+                                            val bitmap = imageProxyToBitmap(image)
+                                            image.close()
+                                            if (bitmap != null) {
+                                                viewModel.analyzeCapturedFrame(bitmap, "Solve this math problem or fix this code step-by-step in clear Hinglish.")
+                                            }
+                                        }
+
+                                        override fun onError(exception: ImageCaptureException) {
+                                            exception.printStackTrace()
+                                        }
+                                    }
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E)),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.height(48.dp)
+                    ) {
+                        Text("Solve Karein", fontSize = 12.sp)
+                    }
                 }
             }
         }
+    }
+}
+
+// Helper to convert ImageProxy to Bitmap
+private fun imageProxyToBitmap(image: ImageProxy): Bitmap? {
+    return try {
+        val planeProxy = image.planes[0]
+        val buffer: ByteBuffer = planeProxy.buffer
+        val bytes = ByteArray(buffer.remaining())
+        buffer.get(bytes)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    } catch (e: Exception) {
+        null
     }
 }

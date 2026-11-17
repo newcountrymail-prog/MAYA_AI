@@ -1,10 +1,11 @@
 package com.maya.assistant.ui.screens.scanner
 
 import android.app.Application
+import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maya.assistant.MayaApplication
-import kotlinx.coroutines.delay
+import com.maya.assistant.vision.VisionTaskType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     private val mayaApp = application as MayaApplication
     private val voiceEngine = mayaApp.voiceEngine
+    private val screenVisionManager = mayaApp.screenVisionManager
 
     private val _isBackCamera = MutableStateFlow(true)
     val isBackCamera: StateFlow<Boolean> = _isBackCamera.asStateFlow()
@@ -21,44 +23,61 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
-    private val _isRecording = MutableStateFlow(false)
-    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+    private val _isTorchOn = MutableStateFlow(false)
+    val isTorchOn: StateFlow<Boolean> = _isTorchOn.asStateFlow()
 
-    private val _statusText = MutableStateFlow("> STANDBY — session shuru karo, Maya ko aankhein do \uD83C\uDFA4")
+    private val _statusText = MutableStateFlow("Camera ready — Maya ko dikhaiye aur poochhiye!")
     val statusText: StateFlow<String> = _statusText.asStateFlow()
 
-    private val _feedState = MutableStateFlow("AI-FEED OFFLINE")
-    val feedState: StateFlow<String> = _feedState.asStateFlow()
+    private val _latestSolution = MutableStateFlow<String?>(null)
+    val latestSolution: StateFlow<String?> = _latestSolution.asStateFlow()
+
+    private val _capturedBitmap = MutableStateFlow<Bitmap?>(null)
+    val capturedBitmap: StateFlow<Bitmap?> = _capturedBitmap.asStateFlow()
 
     fun flipCamera() {
         _isBackCamera.value = !_isBackCamera.value
     }
 
-    fun capturePhoto() {
-        viewModelScope.launch {
-            _isScanning.value = true
-            _statusText.value = "> SCANNING — Visual scene capture in progress..."
-            _feedState.value = "AI-FEED ACTIVE"
-            voiceEngine.speakDirect("Visual scene capture kar rahi hoon. Ek pal dijiye.")
+    fun toggleTorch() {
+        _isTorchOn.value = !_isTorchOn.value
+    }
 
-            delay(2000)
+    fun analyzeCapturedFrame(bitmap: Bitmap, userQuery: String? = null) {
+        viewModelScope.launch {
+            _capturedBitmap.value = bitmap
+            _isScanning.value = true
+            _statusText.value = "Maya photo analyze kar rahi hai..."
+            voiceEngine.speakDirect("Photo dekh rahi hoon, ek second...")
+
+            val queryPrompt = if (!userQuery.isNullOrBlank()) {
+                userQuery
+            } else {
+                "Is photo ko dhyan se dekho aur explain karo ki kya hai, koi problem ya error ho toh Hinglish me solution batao."
+            }
+
+            val result = screenVisionManager.analyzeBitmap(
+                bitmap = bitmap,
+                taskType = VisionTaskType.OBJECT_DESCRIPTION,
+                userQuery = queryPrompt
+            )
 
             _isScanning.value = false
-            _statusText.value = "> ANALYSIS COMPLETE — Scene details successfully processed."
-            voiceEngine.speakDirect("Maine scene capture kar liya hai. Sab theek dikh raha hai!")
+            if (result.success && result.summary.isNotBlank()) {
+                _latestSolution.value = result.summary
+                _statusText.value = "Analysis complete!"
+                // Speak out the real answer in Hinglish
+                voiceEngine.speakDirect(result.summary)
+            } else {
+                val errorMsg = "Photo clear nahi aayi ya network issue hai. Kripya dobara try kijiye."
+                _statusText.value = errorMsg
+                voiceEngine.speakDirect(errorMsg)
+            }
         }
     }
 
-    fun toggleRecording() {
-        _isRecording.value = !_isRecording.value
-        if (_isRecording.value) {
-            _statusText.value = "> RECORDING — Live visual stream active."
-            _feedState.value = "AI-FEED STREAMING"
-            voiceEngine.speakDirect("Live video recording shuru ho gayi hai.")
-        } else {
-            _statusText.value = "> STANDBY — Video saved to gallery."
-            _feedState.value = "AI-FEED OFFLINE"
-            voiceEngine.speakDirect("Recording complete ho gayi hai.")
-        }
+    fun clearSolution() {
+        _latestSolution.value = null
+        _statusText.value = "Camera ready — Maya ko dikhaiye aur poochhiye!"
     }
 }

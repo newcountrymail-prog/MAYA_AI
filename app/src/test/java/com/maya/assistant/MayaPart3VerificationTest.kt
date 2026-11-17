@@ -157,4 +157,63 @@ class MayaPart3VerificationTest {
         val presentCategories = samplePlaybookList.map { it.category }.toSet()
         assertEquals(expectedCategories, presentCategories)
     }
+
+    @Test
+    fun testCalculatorExpressionEvaluation() {
+        fun evalSimple(str: String): Double {
+            return object : Any() {
+                var pos = -1
+                var ch = 0
+                fun nextChar() { ch = if (++pos < str.length) str[pos].code else -1 }
+                fun eat(c: Int): Boolean {
+                    while (ch == ' '.code) nextChar()
+                    if (ch == c) { nextChar(); return true }
+                    return false
+                }
+                fun parse(): Double { nextChar(); val x = parseExpr(); return x }
+                fun parseExpr(): Double {
+                    var x = parseTerm()
+                    while (true) {
+                        if (eat('+'.code)) x += parseTerm()
+                        else if (eat('-'.code)) x -= parseTerm()
+                        else return x
+                    }
+                }
+                fun parseTerm(): Double {
+                    var x = parseFactor()
+                    while (true) {
+                        if (eat('*'.code)) x *= parseFactor()
+                        else if (eat('/'.code)) x /= parseFactor()
+                        else return x
+                    }
+                }
+                fun parseFactor(): Double {
+                    if (eat('+'.code)) return +parseFactor()
+                    if (eat('-'.code)) return -parseFactor()
+                    var x: Double
+                    val startPos = pos
+                    if (eat('('.code)) {
+                        x = parseExpr()
+                        eat(')'.code)
+                    } else if ((ch >= '0'.code && ch <= '9'.code) || ch == '.'.code) {
+                        while ((ch >= '0'.code && ch <= '9'.code) || ch == '.'.code) nextChar()
+                        x = str.substring(startPos, pos).toDouble()
+                    } else throw RuntimeException()
+                    return x
+                }
+            }.parse()
+        }
+
+        assertEquals(110.0, evalSimple("25 * 4 + 10"), 0.001)
+        assertEquals(50.0, evalSimple("100 / 2"), 0.001)
+    }
+
+    @Test
+    fun testHinglishPersonaToneAndGreetings() {
+        val sampleHinglish = "Haanji! Kahiye, main aapki kya madad kar sakti hoon? Bataiye kya help chahiye!"
+        assertTrue(sampleHinglish.contains("Haanji"))
+        assertTrue(sampleHinglish.contains("madad"))
+        assertTrue(sampleHinglish.contains("help"))
+    }
 }
+

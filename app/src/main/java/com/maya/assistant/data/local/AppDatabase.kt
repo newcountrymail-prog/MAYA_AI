@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
         ResearchReportEntity::class,
         UserMemoryEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -171,6 +171,20 @@ abstract class AppDatabase : RoomDatabase() {
         private suspend fun populateInitialProviders(dao: AiProviderDao) {
             val defaultProviders = listOf(
                 AiProviderEntity(
+                    name = "Maya Neural AI (Pollinations Free)",
+                    apiKey = "",
+                    baseUrl = "https://text.pollinations.ai",
+                    authType = "None",
+                    apiFormat = "OpenAI",
+                    selectedModel = "openai",
+                    capabilities = "conversation,reasoning,coding,vision,research,documents",
+                    priority = 1,
+                    isEnabled = true,
+                    pricingTier = "VerifiedFree",
+                    connectionStatus = "Connected",
+                    isDefault = true
+                ),
+                AiProviderEntity(
                     name = "Google Gemini Free Tier",
                     apiKey = "",
                     baseUrl = "https://generativelanguage.googleapis.com/v1beta",
@@ -178,11 +192,11 @@ abstract class AppDatabase : RoomDatabase() {
                     apiFormat = "Gemini",
                     selectedModel = "gemini-1.5-flash",
                     capabilities = "conversation,reasoning,coding,vision,research,documents",
-                    priority = 1,
+                    priority = 2,
                     isEnabled = true,
                     pricingTier = "FreeTier",
-                    connectionStatus = "Connected",
-                    isDefault = true
+                    connectionStatus = "Ready (Key Optional)",
+                    isDefault = false
                 ),
                 AiProviderEntity(
                     name = "Groq High-Speed",

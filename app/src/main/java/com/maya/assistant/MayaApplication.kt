@@ -76,6 +76,9 @@ class MayaApplication : Application() {
     lateinit var cloudJobManager: CloudJobManager
         private set
 
+    lateinit var mayaToolsManager: com.maya.assistant.tools.MayaToolsManager
+        private set
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -94,10 +97,21 @@ class MayaApplication : Application() {
         browserAndResearchEngine = BrowserAndResearchEngine()
         documentsEngine = DocumentsEngine()
 
-        voiceEngine = VoiceEngine(this, preferencesManager)
-
         phoneControlManager = PhoneControlManager(this)
         phoneCommunicationManager = PhoneCommunicationManager(this)
+        mayaToolsManager = com.maya.assistant.tools.MayaToolsManager(
+            this,
+            phoneControlManager,
+            phoneCommunicationManager,
+            userMemoryRepository
+        )
+
+        voiceEngine = VoiceEngine(
+            this,
+            preferencesManager,
+            { multiModelOrchestrator },
+            { mayaToolsManager }
+        )
         screenVisionManager = ScreenVisionManager(this, multiModelOrchestrator)
         skillsManager = SkillsManager(phoneControlManager, phoneCommunicationManager)
         cloudJobManager = CloudJobManager(multiModelOrchestrator)
